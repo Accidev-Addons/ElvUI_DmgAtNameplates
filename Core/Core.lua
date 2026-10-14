@@ -101,6 +101,7 @@ local MISS_EVENT_STRINGS = {
 local sReturn
 function DAN:GetUnitTypeByFlag(flag)
 	sReturn = ""
+	flag = flag or 0
 	if band(flag, COMBATLOG_OBJECT_TYPE_PLAYER) > 0 then
 		sReturn = "Player"
 	elseif band (flag, COMBATLOG_OBJECT_TYPE_NPC) > 0 then
@@ -161,21 +162,28 @@ function DAN:GetFontPath(fontName)
 	local fontPath = LSM:Fetch("font", fontName) or "Fonts\\FRIZQT__.TTF"
 	return fontPath
 end
-function DAN:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag)
-	-- isPlayerEvent = pguid == whoguid
-	-- isPetEvent = bit.band(whoflag, BITMASK_PETS) > 0 and bit.band(whoflag, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0
-	-- playerToUnitEvent = isPlayerEvent and tguid ~= pguid
-	-- unitToPlayerEvent = not isPlayerEvent and tguid == pguid
-	if playerToUnitEvent then
-		return (tguid and NP.PlateGUID[tguid]) or (isTargetEvent and self.ElvUI_ToTargetFrame)
-	elseif unitToPlayerEvent then
-		return self.ElvUI_ToPlayerFrame
-	elseif isPetEvent then
-		return (tguid and NP.PlateGUID[tguid]) or (isTargetEvent and self.ElvUI_ToTargetFrame)
-	elseif playerToPlayerEvent then
+-- 9.09.07 uses token-based Sirus plates; PlateGUID belongs to old ElvUI.
+function DAN:GetNameplateFrame(guid)
+	if not guid then return end
+	local function Valid(frame)
+		frame = frame and (frame.ElvUIFrame or frame)
+		if frame and frame:IsShown() and frame.guid == guid
+			and (not frame.unit or UnitGUID(frame.unit) == guid) then return frame end
+	end
+	local legacy = NP.PlateGUID and Valid(NP.PlateGUID[guid])
+	if legacy then return legacy end
+	for frame in pairs(NP.VisiblePlates or {}) do
+		local plate = Valid(frame)
+		if plate then return plate end
+	end
+end
+
+function DAN:GetFrame(whoguid, whoname, whoflag, tguid, tname, tflag)
+	if playerToUnitEvent or isPetEvent or unitToUnitEvent then
+		return self:GetNameplateFrame(tguid) or (isTargetEvent and self.ElvUI_ToTargetFrame)
+	elseif unitToPlayerEvent or playerToPlayerEvent then
 		return self.ElvUI_ToPlayerFrame
 	end
-	return nil
 end
 local useRandomCoords = true
 
@@ -218,7 +226,7 @@ function DAN:GetFontString(frame)
 
 		-- if fontString.icon.button then
 		-- 	fontString.icon.button:Show()
-		-- 
+		--
 
 	return fontString
 end
@@ -239,6 +247,8 @@ function DAN:DeleteFontString(fontString)
 	fontString.animatingDuration = nil
 	fontString.animatingStartTime = nil
 	fontString.anchorFrame = nil
+	fontString.nameplateFrame = nil
+	fontString.anchorGUID = nil
 	fontString.startX = nil
 	fontString.startY = nil
 
@@ -312,7 +322,10 @@ local function AnimationOnUpdate()
 	if next(animating) then
 		for fontString, _ in pairs(animating) do
 			local elapsed = GetTime() - fontString.animatingStartTime
-			if elapsed > fontString.animatingDuration then
+			local plate = fontString.nameplateFrame
+			if elapsed > fontString.animatingDuration or (plate and
+				(not plate:IsShown() or plate.guid ~= fontString.anchorGUID
+				or (plate.unit and UnitGUID(plate.unit) ~= fontString.anchorGUID))) then
 				DAN:DeleteFontString(fontString)
 			else
 				local isTarget = false
@@ -341,7 +354,7 @@ local function AnimationOnUpdate()
 					else
 						fontString.pow = nil
 						fontString:SetTextHeight(height)
-						fontString:SetFont(E.db.DmgAtNameplates.font,E.db.DmgAtNameplates.fontSize,E.db.DmgAtNameplates.fontOutline)
+						fontString:SetFont(DAN:GetFontPath(DAN.db.font),DAN.db.fontSize,DAN.db.fontOutline)
 						fontString:SetShadowOffset(0, 0)
 						fontString:SetText(fontString.DANText)
 					end
@@ -446,7 +459,11 @@ function DAN:DisplayText(f, text, size, alpha, animation, spellId, pow, spellNam
 			fontString.icon:Hide()
 		end
 	end
-	self:Animate(fontString, f, self.db.duration, animation)
+	-- Use the visible ElvUI health bar, not the hidden Blizzard UnitFrame.
+	local anchor = f.Health and f.Health:IsShown() and f.Health or f
+	fontString.nameplateFrame = f.guid and f or nil
+	fontString.anchorGUID = f.guid
+	self:Animate(fontString, anchor, self.db.duration, animation)
 end
 
 local numDamageEvents = 0
@@ -631,6 +648,7 @@ end
 local BITMASK_PETS = COMBATLOG_OBJECT_TYPE_PET + COMBATLOG_OBJECT_TYPE_GUARDIAN
 
 function DAN:IsSourceMyPet(whoguid, whoflag)
+	whoflag = whoflag or 0
 	if (band(whoflag, BITMASK_PETS) > 0) and (band(whoflag, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0) then
 		return true
 	end
@@ -649,7 +667,8 @@ end
 -- local args1,args2,subevent,whoguid,whoname,whoflag,tguid,tname,tflag,spellid,spellname,spellschool,amount,overHeal_Kill,args15,args16,args17,args18,dmgCrit,args20
 
 function DAN:FilterEvent(args1,args2,subevent,whoguid,whoname,whoflag,tguid,tname,tflag,spellid,spellname,spellschool,amount,overHeal_Kill,args15,args16,args17,args18,dmgCrit)
-	local db = self.db or E.db.DmgAtNameplates
+	local db = E.db.DmgAtNameplates
+	self.db = db
 	if not db or not db.enable then return end
 	-- print("rab")
 	-- args1,args2,subevent,whoguid,whoname,whoflag,tguid,tname,tflag,spellid,spellname,spellschool,amount,overHeal_Kill,args15,args16,args17,args18,dmgCrit,args20 =...
@@ -717,8 +736,8 @@ function DAN:PLAYER_ENTERING_WORLD(...)
 
 	pguid = UnitGUID("player")
 	self.DmgTextFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-	self.DmgTextFrame:SetScript("OnEvent",function(event,...)
-		self:FilterEvent(...)
+	self.DmgTextFrame:SetScript("OnEvent", function(_, event, ...)
+		self:FilterEvent(event, ...)
 	end)
 	self.db = E.db.DmgAtNameplates
 	E:CreateMover(self.ElvUI_ToPlayerFrame, "PlayerDMGFrame", L["PlayerDMGFrame"], nil, nil, nil, "ALL", nil, "DmgAtNameplates");
@@ -726,27 +745,32 @@ function DAN:PLAYER_ENTERING_WORLD(...)
 end
 
 function DAN:PLAYER_TALENT_UPDATE(event)
-	if self.activeSpec ~= C_Talent.GetSpecInfoCache().activeTalentGroup then
+	local cache = C_Talent and C_Talent.GetSpecInfoCache and C_Talent.GetSpecInfoCache()
+	if cache and self.activeSpec ~= cache.activeTalentGroup then
 		self.db = E.db.DmgAtNameplates
-		self.activeSpec = C_Talent.GetSpecInfoCache().activeTalentGroup
+		self.activeSpec = cache.activeTalentGroup
 	end
 end
 
 function DAN:OnDisable()
 	-- if not E.db.DmgAtNameplates.onorof then
 	self.DmgTextFrame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	for fontString in pairs(animating) do self:DeleteFontString(fontString) end
+	self.DmgTextFrame:SetScript("OnUpdate", nil)
 end
 function DAN:OnEnable()
 	-- if E.db.DmgAtNameplates.onorof then
 	self.DmgTextFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-	self.DmgTextFrame:SetScript("OnEvent",function(event,...)
-		self:FilterEvent(...)
+	self.DmgTextFrame:SetScript("OnEvent", function(_, event, ...)
+		self:FilterEvent(event, ...)
 	end)
 end
 
 function DAN:Initialize()
 	EP:RegisterPlugin(DAN.AddOnName, self.DmgAtNameplatesOptions)
-	self.activeSpec = C_Talent.GetSpecInfoCache() and C_Talent.GetSpecInfoCache().activeTalentGroup or 1
+	local cache = C_Talent and C_Talent.GetSpecInfoCache and C_Talent.GetSpecInfoCache()
+	self.activeSpec = cache and cache.activeTalentGroup or 1
+	self.db = E.db.DmgAtNameplates
 	-- self.db = E.db
 	self:RegisterEvent("PLAYER_ENTERING_WORLD")
 	self:RegisterEvent("PLAYER_TALENT_UPDATE")
