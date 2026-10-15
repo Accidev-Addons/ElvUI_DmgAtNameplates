@@ -592,7 +592,7 @@ function DAN:MissEvent(f, spellName, missType, spellId)
 	animation = self.db.miss.animation or "verticalDown"
 	color = self.db.miss.color or "ffff00"
 	size = self.db.miss.fontSize or 20
-	alpha = 1
+	alpha = self.db.miss.fontAlpha or 1
 	pow = true
 	if missType == "ABSORB" then
 		return
@@ -608,7 +608,7 @@ function DAN:MissEventPet(f, spellName, missType, spellId)
 	animation = self.db.miss.animation or "verticalDown"
 	color = self.db.miss.color or "ffff00"
 	size = self.db.miss.fontSize or 20
-	alpha = 1
+	alpha = self.db.miss.fontAlpha or 1
 	pow = true
 	if missType == "ABSORB" then
 		return
@@ -623,7 +623,7 @@ function DAN:DispelEvent(f, spellName, infodis, spellId)
 	animation = self.db.dispel.animation or "verticalDown"
 	color = self.db.dispel.color or "ffff00"
 	size = self.db.dispel.fontSize or 20
-	alpha = 1
+	alpha = self.db.dispel.fontAlpha or 1
 	pow = false
 	text = "|cff" .. color .. infodis .. "|r"
 	self:DisplayText(f, text, size, alpha, animation, spellId, pow, spellName,"dispel")
@@ -634,7 +634,7 @@ function DAN:SpellInterruptEvent(f,  spllname, splld, intrspll)
 	animation = self.db.interrupt.animation or "verticalDown"
 	color = self.db.interrupt.color or "ffff00"
 	size = self.db.interrupt.fontSize or 20
-	alpha = 1
+	alpha = self.db.interrupt.fontAlpha or 1
 	pow = true
 	text = "Прервано ".."{"..intrspll.."}"
 	text = "|cff" .. color .. text .. "|r"

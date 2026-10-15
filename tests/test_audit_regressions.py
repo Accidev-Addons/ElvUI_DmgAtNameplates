@@ -45,3 +45,25 @@ class EventFont(unittest.TestCase):
    self.assertEqual(l.eval('fonts[1].fontPathSet'),'missfont')
    l.execute('now=.3;DAN.DmgTextFrame.scripts.OnUpdate()')
    self.assertEqual(l.eval('fonts[1].fontPathSet'),'missfont');self.assertEqual(l.eval('fonts[1].sizeSet'),18)
+
+class EventAlpha(unittest.TestCase):
+ def test_event_alpha_reaches_text_icon_and_animation(self):
+  for source,flags,event,payload,category in [
+   ('PLAYER',1,'SPELL_MISSED','123,"Spell",4,"DODGE"','miss'),
+   ('PET',160,'SWING_MISSED','"PARRY",false','miss'),
+   ('PLAYER',1,'SPELL_DISPEL','123,"Dispel",2,456,"Aura",4,"BUFF"','dispel'),
+   ('PLAYER',1,'SPELL_INTERRUPT','123,"Interrupt",1,456,"Interrupted",4','interrupt')]:
+   for alpha in (0,.2,.75,1):
+    with self.subTest(event=event,alpha=alpha):
+     l=configured();l.execute('DAN.db.showIcon=true;DAN.db.'+category+'.fontAlpha='+str(alpha))
+     combat(l,event,payload,source,'NPC',flags)
+     self.assertEqual(l.eval('#fonts'),1);self.assertAlmostEqual(l.eval('fonts[1].startAlpha'),alpha)
+     self.assertAlmostEqual(l.eval('fonts[1].alpha'),alpha);self.assertAlmostEqual(l.eval('fonts[1].icon.alpha'),alpha)
+     l.execute('now=.2;DAN.DmgTextFrame.scripts.OnUpdate()')
+     self.assertAlmostEqual(l.eval('fonts[1].alpha'),alpha*.5);self.assertAlmostEqual(l.eval('fonts[1].icon.alpha'),alpha*.5)
+ def test_missing_event_alpha_defaults_to_one(self):
+  l=configured();combat(l,'SWING_MISSED','"DODGE",false');self.assertEqual(l.eval('fonts[1].startAlpha'),1)
+ def test_reused_font_reads_new_profile_alpha(self):
+  l=configured();l.execute('DAN.db.miss.fontAlpha=.2');combat(l,'SWING_MISSED','"DODGE",false')
+  l.execute('DAN:DeleteFontString(fonts[1]);local old=DAN.db;E.db.DmgAtNameplates={};for k,v in pairs(old) do E.db.DmgAtNameplates[k]=v end;E.db.DmgAtNameplates.miss={font="newfont",fontSize=19,fontOutline="OUTLINE",fontAlpha=.7}')
+  combat(l,'SWING_MISSED','"PARRY",false');self.assertEqual(l.eval('#fonts'),1);self.assertEqual(l.eval('fonts[1].fontPathSet'),'newfont');self.assertAlmostEqual(l.eval('fonts[1].startAlpha'),.7)
