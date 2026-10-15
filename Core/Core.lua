@@ -233,7 +233,6 @@ function DAN:GetFontString(frame)
 
 	fontString:SetAlpha(1)
 	fontString:SetDrawLayer("OVERLAY")
-	fontString:SetText("")
 	fontString:Show()
 
 	if not fontString.icon then
@@ -426,7 +425,6 @@ function DAN:DisplayText(f, text, size, alpha, animation, spellId, pow, spellNam
 	fontString = self:GetFontString(f)
 
 	fontString.DANText = text
-	fontString:SetText(fontString.DANText)
 
 	fontString.DANFontSize = size
 	fontString.fontPath = self:GetFontPath(etype and self.db[etype].font or self.db.font)
@@ -434,6 +432,7 @@ function DAN:DisplayText(f, text, size, alpha, animation, spellId, pow, spellNam
 	fontString.startAlpha = alpha or 1
 	fontString:SetAlpha(fontString.startAlpha)
 	fontString:SetFont(fontString.fontPath, size, fontString.fontOutline)
+	fontString:SetText(fontString.DANText)
 
 	fontString.startHeight = fontString:GetStringHeight()
 	fontString.pow = pow
