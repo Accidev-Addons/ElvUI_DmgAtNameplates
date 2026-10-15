@@ -59,6 +59,30 @@ class Runtime(unittest.TestCase):
  def test_ignored_events_skip_unit_api(self):
   l=env();l.execute('guidCalls=0;local old=UnitGUID;UnitGUID=function(u) guidCalls=guidCalls+1 return old(u) end;DAN:FilterEvent("CLEU",1,"SPELL_CAST_SUCCESS","PLAYER","player",1,"NPC","mob",10)')
   self.assertEqual(l.eval('guidCalls'),0);self.assertEqual(l.eval('#fonts'),0)
+ def test_unrelated_combat_is_rejected_even_with_old_setting(self):
+  events=['SPELL_DAMAGE','SPELL_PERIODIC_DAMAGE','RANGE_DAMAGE','SWING_DAMAGE','SPELL_HEAL','SPELL_PERIODIC_HEAL','SPELL_MISSED','SWING_MISSED','SPELL_DISPEL','SPELL_INTERRUPT']
+  for enabled in (True,False):
+   for event in events:
+    with self.subTest(setting=enabled,event=event):
+     l=env();l.execute('E.db.DmgAtNameplates.showFromAnotherPlayer='+str(enabled).lower())
+     l.execute("calls=0;for _,name in ipairs({'DamageEvent','HealEvent','MissEvent','MissEventPet','DispelEvent','SpellInterruptEvent'}) do DAN[name]=function() calls=calls+1 end end")
+     l.globals().combatEvent=event
+     l.execute('DAN:FilterEvent("CLEU",1,combatEvent,"OTHER","other",1,"NPC","mob",10,123,"Spell",4,100,0,0,0,0,0,false)')
+     self.assertEqual(l.eval('calls'),0)
+ def test_personal_combat_routes_to_expected_frame(self):
+  for source,target,flags,expected in [('PLAYER','NPC',1,'frame'),('OTHER','PLAYER',1,'DAN.ElvUI_ToPlayerFrame'),('PLAYER','PLAYER',1,'DAN.ElvUI_ToPlayerFrame'),('PET','NPC',160,'frame'),('GUARDIAN','NPC',192,'frame')]:
+   with self.subTest(source=source,target=target):
+    l=env();l.execute('E.db.DmgAtNameplates.targetToPlayerDamageText=true;E.db.DmgAtNameplates.petToTargetDamageText=true;DAN.DamageEvent=function(_,f) received=f end')
+    l.globals().sourceGUID=source;l.globals().destGUID=target;l.globals().sourceFlags=flags
+    l.execute('DAN:FilterEvent("CLEU",1,"SPELL_DAMAGE",sourceGUID,"source",sourceFlags,destGUID,"dest",10,123,"Spell",4,100,0,0,0,0,0,false)')
+    self.assertTrue(l.eval('received=='+expected))
+ def test_foreign_pet_and_unrelated_frame_lookup_rejected(self):
+  l=env();self.assertIsNone(l.eval('DAN:GetFrame("OTHER","other",1,"NPC","mob",10)'))
+  self.assertIsNone(l.eval('DAN:GetFrame("FOREIGNPET","pet",32,"NPC","mob",10)'))
+  self.assertTrue(l.eval('DAN:GetFrame("OTHER","other",1,"PLAYER","player",1)==DAN.ElvUI_ToPlayerFrame'))
+ def test_personal_direction_toggles_still_apply(self):
+  l=env();l.execute('E.db.DmgAtNameplates.playerToTargetDamageText=false;DAN:FilterEvent("CLEU",1,"SPELL_DAMAGE","PLAYER","player",1,"NPC","mob",10,123,"Spell",4,100)')
+  self.assertEqual(l.eval('#fonts'),0)
  def test_disabled_animation_does_not_allocate(self):
   l=env();l.execute('DAN:DisplayText(frame,"text",20,1,"disabled",123,false,"Spell")');self.assertEqual(l.eval('#fonts'),0)
  def test_animation_pool_time_and_alpha(self):
