@@ -37,3 +37,11 @@ class CombatPayloads(unittest.TestCase):
     l=configured();l.execute('DAN.db.'+toggle+'=false');combat(l,event,payload,source,target,flags);self.assertEqual(l.eval('#fonts'),0)
   for source,flags in [('OTHER',1),('FOREIGNPET',32)]:
    l=configured();combat(l,'SWING_DAMAGE','100,0,1,0,0,0,true',source,'NPC',flags);self.assertEqual(l.eval('#fonts'),0)
+
+class EventFont(unittest.TestCase):
+ def test_real_miss_handler_uses_miss_font_and_restores_it_after_animation(self):
+  for event,payload in [('SWING_MISSED','"DODGE",false'),('SPELL_MISSED','123,"Spell",4,"PARRY"')]:
+   l=configured();combat(l,event,payload)
+   self.assertEqual(l.eval('fonts[1].fontPathSet'),'missfont')
+   l.execute('now=.3;DAN.DmgTextFrame.scripts.OnUpdate()')
+   self.assertEqual(l.eval('fonts[1].fontPathSet'),'missfont');self.assertEqual(l.eval('fonts[1].sizeSet'),18)
