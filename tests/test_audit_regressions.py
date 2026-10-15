@@ -101,3 +101,45 @@ class NegativeGUIDCache(unittest.TestCase):
   self.assertTrue(l.eval('DAN:GetNameplateFrame("NEW")==frame'))
  def test_scan_counter_observes_real_fallback(self):
   l=indexed();l.execute('DAN:GetNameplateFrame("MISSING")');self.assertEqual(l.eval('scans'),1)
+
+class StrictAPI(unittest.TestCase):
+ def test_unknown_methods_are_not_accepted(self):
+  l=env()
+  for method in ('SetInventedMethod','GetInventedMethod'):
+   self.assertFalse(l.eval('pcall(function() newFrame():'+method+'() end)')[0])
+ def test_uninitialized_font_is_rejected(self):
+  l=env();self.assertFalse(l.eval('pcall(function() local text=newFrame():CreateFontString();text:SetText("bad") end)')[0])
+  self.assertFalse(l.eval('pcall(function() newFrame():SetTextHeight(12) end)')[0])
+ def test_all_animation_paths_use_explicit_api(self):
+  for animation in ('verticalUp','verticalDown','fountain','rainfall'):
+   l=configured();l.globals().animation=animation
+   l.execute('DAN.db.showIcon=true;DAN:DisplayText(frame,"hit",20,.6,animation,123,true,"Spell");now=.05;DAN.DmgTextFrame.scripts.OnUpdate();now=.3;DAN.DmgTextFrame.scripts.OnUpdate();now=2;DAN.DmgTextFrame.scripts.OnUpdate()')
+   self.assertFalse(l.eval('fonts[1].shown'));self.assertFalse(l.eval('fonts[1].icon.shown'))
+ def test_disable_cleans_text_and_event_registration(self):
+  l=configured();combat(l,'SWING_DAMAGE','100,0,1,0,0,0,true')
+  l.execute('DAN.db.enable=false;DAN:OnDisable()');self.assertFalse(l.eval('fonts[1].shown'))
+  self.assertIsNone(l.eval('DAN.DmgTextFrame:GetScript("OnUpdate")'));self.assertIsNone(l.eval('DAN.DmgTextFrame.events.COMBAT_LOG_EVENT_UNFILTERED'))
+  combat(l,'SWING_DAMAGE','100,0,1,0,0,0,true');self.assertEqual(l.eval('#fonts'),1);self.assertFalse(l.eval('fonts[1].shown'))
+
+class ShippedProfile(unittest.TestCase):
+ def test_real_profile_defaults_render_personal_combat(self):
+  from test_runtime import ROOT
+  for event,payload,source,flags in [
+   ('SWING_DAMAGE','100,0,1,0,0,0,true','PLAYER',1),
+   ('SWING_MISSED','"PARRY",false','PET',160),
+   ('SPELL_MISSED','123,"Spell",4,"DODGE"','PLAYER',1),
+   ('SPELL_HEAL','123,"Heal",2,100,0,0,true','PLAYER',1),
+   ('SPELL_DISPEL','123,"Dispel",2,456,"Aura",4,"BUFF"','PLAYER',1),
+   ('SPELL_INTERRUPT','123,"Interrupt",1,456,"Interrupted",4','PLAYER',1)]:
+   l=env();l.execute((ROOT/'Settings/Profile.lua').read_text());l.execute('E.db=ElvUI[4]')
+   combat(l,event,payload,source,'NPC',flags)
+   self.assertEqual(l.eval('#fonts'),1);self.assertEqual(l.eval('fonts[1].fontPathSet'),'PT Sans Narrow')
+ def test_real_profile_rejects_foreign_combat(self):
+  from test_runtime import ROOT
+  l=env();l.execute((ROOT/'Settings/Profile.lua').read_text());l.execute('E.db=ElvUI[4]')
+  combat(l,'SWING_DAMAGE','100,0,1,0,0,0,true','OTHER','NPC',1);self.assertEqual(l.eval('#fonts'),0)
+ def test_addon_version_and_update_source_are_unchanged(self):
+  from test_runtime import ROOT
+  toc=(ROOT/'ElvUI_DmgAtNameplates.toc').read_text()
+  self.assertIn('## Version: 1.16',toc)
+  self.assertEqual([line for line in toc.splitlines() if line.startswith('## X-Sirus-Update:')],['## X-Sirus-Update: https://github.com/fxpw/ElvUI_DmgAtNameplates/tree/master'])

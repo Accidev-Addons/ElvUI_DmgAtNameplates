@@ -4,7 +4,83 @@ from lupa.lua51 import LuaRuntime
 import unittest
 ROOT=Path(__file__).resolve().parents[1]
 
-COMMON='\nformat=string.format; tinsert=table.insert; max=math.max\nfunction wipe(t) for k in pairs(t) do t[k]=nil end return t end\nfunction newFrame(parent)\n local f={parent=parent,shown=true,width=100,height=16,points={},scripts={},events={}}\n function f:ClearAllPoints() self.points={} end\n function f:SetPoint(...) table.insert(self.points,{...}) end\n f.Point=f.SetPoint\n function f:ClearAndSetPoint(...) self:ClearAllPoints() self:SetPoint(...) end\n function f:SetSize(w,h) self.width=w self.height=h or w end; f.Size=f.SetSize\n function f:SetWidth(v) self.width=v end; f.Width=f.SetWidth\n function f:SetHeight(v) self.height=v end; f.Height=f.SetHeight\n function f:GetWidth() return self.width end\n function f:GetHeight() return self.height end\n function f:GetSize() return self.width,self.height end\n function f:GetFrameLevel() return 1 end\n function f:GetParent() return self.parent end\n function f:SetParent(p) self.parent=p end\n function f:IsShown() return self.shown end; f.IsVisible=f.IsShown\n function f:Show() self.shown=true end\n function f:Hide() self.shown=false end\n function f:SetShown(v) self.shown=not not v end\n function f:SetText(v)\n  assert(not self.isFontString or self.fontSet, "SetText(): Font not set")\n  self.text=v\n end\n function f:FontTemplate() self.fontSet=true end\n function f:SetFont() self.fontSet=true end\n function f:SetFormattedText(fmt,...) assert(not self.isFontString or self.fontSet,"SetFormattedText(): Font not set");self.text=string.format(fmt,...) end\n function f:GetStringHeight() return 12 end\n function f:SetTextColor(...) self.color={...} end\n function f:SetValue(v) self.value=v end\n function f:SetMinMaxValues(a,b) self.min=a self.max=b end\n function f:CreateTexture() return newFrame(self) end\n function f:CreateFontString() local text=newFrame(self);text.isFontString=true;return text end\n function f:SetScript(k,v) self.scripts[k]=v end\n function f:RegisterEvent(k) self.events[k]=true end\n function f:UnregisterEvent(k) self.events[k]=nil end\n function f:CanChangeProtectedState() return not self.locked end\n function f:IsObjectType() return true end\n function f:GetStatusBarTexture() return self.texture end\n setmetatable(f,{__index=function(_,k) if k:match(\'^Set\') or k:match(\'^Get\') or k==\'FontTemplate\' or k==\'EnableMouse\' then return function() end end end})\n return f\nend\nframes={}\nfunction CreateFrame(_,name,parent) local f=newFrame(parent); table.insert(frames,f); if name then _G[name]=f end return f end\nhooks={}\nfunction hooksecurefunc(a,b,c) if type(a)==\'string\' then hooks[a]=b else hooks[b]=c end end\nC_Timer={After=function(_,_,fn) fn() end}\nNP={db={units={}},VisiblePlates={},CreatedPlates={}}\nfunction NP:Pixel(x) return x end; NP.SirusPixel=NP.Pixel\nfunction NP:GetHealth(f) return f.health or 80,f.maxHealth or 100 end\nE={media={blankTex=\'blank\'},Libs={LSM={Fetch=function(_,_,v) return v end}},UIParent=newFrame(),oUF={Private={frame_metatable={__index={}}},colors={}}}\nfunction E:GetModule() return NP end\nfunction E:ShortValue(v) return tostring(v) end\nfunction E:ClassColor() return {r=1,g=0,b=0} end\nfunction E:CreateMover() end\nElvUI={E,setmetatable({},{__index=function(_,k) return k end}),{},{nameplates={units={}}},{}}\nunitGUIDs={player=\'PLAYER\',target=\'NPC\'}\nfunction UnitGUID(u) return unitGUIDs[u] end\nfunction UnitExists(u) return unitGUIDs[u]~=nil end\nfunction UnitName(u) return u end\nfunction UnitClass() return \'Mage\',\'MAGE\' end\nfunction UnitIsPlayer() return false end\nfunction UnitCanAttack() return true end\nfunction GetSpellInfo(x) return tostring(x),nil,\'texture\' end\n'
+COMMON=r'''
+format=string.format; tinsert=table.insert; max=math.max
+function wipe(t) for k in pairs(t) do t[k]=nil end return t end
+function newFrame(parent)
+ local f={parent=parent,shown=true,width=100,height=16,points={},scripts={},events={}}
+ function f:ClearAllPoints() self.points={} end
+ function f:SetPoint(...) table.insert(self.points,{...}) end
+ f.Point=f.SetPoint
+ function f:ClearAndSetPoint(...) self:ClearAllPoints() self:SetPoint(...) end
+ function f:SetSize(w,h) self.width=w self.height=h or w end; f.Size=f.SetSize
+ function f:SetWidth(v) self.width=v end; f.Width=f.SetWidth
+ function f:SetHeight(v) self.height=v end; f.Height=f.SetHeight
+ function f:GetWidth() return self.width end
+ function f:GetHeight() return self.height end
+ function f:GetSize() return self.width,self.height end
+ function f:GetFrameLevel() return 1 end
+ function f:GetParent() return self.parent end
+ function f:SetParent(p) self.parent=p end
+ function f:IsShown() return self.shown end; f.IsVisible=f.IsShown
+ function f:Show() self.shown=true end
+ function f:Hide() self.shown=false end
+ function f:SetShown(v) self.shown=not not v end
+ function f:SetText(v)
+  assert(not self.isFontString or self.fontSet, "SetText(): Font not set")
+  self.text=v
+ end
+ function f:FontTemplate() self.fontSet=true end
+ function f:SetFont() self.fontSet=true end
+ function f:SetFormattedText(fmt,...) assert(not self.isFontString or self.fontSet,"SetFormattedText(): Font not set");self.text=string.format(fmt,...) end
+ function f:GetStringHeight() return 12 end
+ function f:SetTextColor(...) self.color={...} end
+ function f:SetValue(v) self.value=v end
+ function f:SetMinMaxValues(a,b) self.min=a self.max=b end
+ function f:CreateTexture() return newFrame(self) end
+ function f:CreateFontString() local text=newFrame(self);text.isFontString=true;return text end
+ function f:SetScript(k,v) self.scripts[k]=v end
+ function f:RegisterEvent(k) self.events[k]=true end
+ function f:UnregisterEvent(k) self.events[k]=nil end
+ function f:CanChangeProtectedState() return not self.locked end
+ function f:IsObjectType() return true end
+ function f:GetStatusBarTexture() return self.texture end
+ -- Explicit API only: an unknown Set*/Get* call must fail, not silently pass.
+ function f:SetFrameStrata(value) assert(type(value)=='string');self.strata=value end
+ function f:SetFrameLevel(value) assert(type(value)=='number');self.level=value end
+ function f:GetFrameLevel() return self.level or 1 end
+ function f:GetScript(event) return self.scripts[event] end
+ function f:SetAlpha(value) assert(type(value)=='number');self.alpha=value end
+ function f:SetDrawLayer(value) self.drawLayer=value end
+ function f:SetShadowOffset(x,y) self.shadowOffset={x,y} end
+ function f:SetTexCoord(...) self.texCoord={...} end
+ function f:SetTexture(value) self.texture=value end
+ function f:SetTextHeight(value) assert(self.fontSet,'SetTextHeight(): Font not set');self.textHeight=value end
+ return f
+end
+frames={}
+function CreateFrame(_,name,parent) local f=newFrame(parent); table.insert(frames,f); if name then _G[name]=f end return f end
+hooks={}
+function hooksecurefunc(a,b,c) if type(a)=='string' then hooks[a]=b else hooks[b]=c end end
+C_Timer={After=function(_,_,fn) fn() end}
+NP={db={units={}},VisiblePlates={},CreatedPlates={}}
+function NP:Pixel(x) return x end; NP.SirusPixel=NP.Pixel
+function NP:GetHealth(f) return f.health or 80,f.maxHealth or 100 end
+E={media={blankTex='blank'},Libs={LSM={Fetch=function(_,_,v) return v end}},UIParent=newFrame(),oUF={Private={frame_metatable={__index={}}},colors={}}}
+function E:GetModule() return NP end
+function E:ShortValue(v) return tostring(v) end
+function E:ClassColor() return {r=1,g=0,b=0} end
+function E:CreateMover() end
+ElvUI={E,setmetatable({},{__index=function(_,k) return k end}),{},{nameplates={units={}}},{}}
+unitGUIDs={player='PLAYER',target='NPC'}
+function UnitGUID(u) return unitGUIDs[u] end
+function UnitExists(u) return unitGUIDs[u]~=nil end
+function UnitName(u) return u end
+function UnitClass() return 'Mage','MAGE' end
+function UnitIsPlayer() return false end
+function UnitCanAttack() return true end
+function GetSpellInfo(x) return tostring(x),nil,'texture' end
+'''
 
 def env(before_core=""):
  l=LuaRuntime(unpack_returned_tuples=True);l.execute(COMMON)
