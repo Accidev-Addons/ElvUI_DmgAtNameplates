@@ -136,7 +136,6 @@ local mse = {
 	SPELL_PERIODIC_MISSED = true,
 	RANGE_MISSED = true,
 	SPELL_BUILDING_MISSED = true,
-	-- SWING_MISSED = true
 }
 -- heal spell events
 local hse = {
@@ -678,47 +677,51 @@ function DAN:FilterEvent(args1,args2,subevent,whoguid,whoname,whoflag,tguid,tnam
 	local unitToPlayerEvent = not isPlayerEvent and (tguid == pguid);
 	targetUnitType = self:GetUnitTypeByFlag(tflag);
 
+	-- The Sirus/3.3.5 combat log has a different payload for melee attacks:
+	-- SWING_DAMAGE: amount, overkill, school, resisted, blocked, absorbed, crit.
+	-- SWING_MISSED: missType, offHand. Normalize without allocating a table.
+	local swingDamage, swingMiss = subevent == "SWING_DAMAGE", subevent == "SWING_MISSED"
+	if swingDamage or swingMiss then
+		amount = spellid
+		spellname = isPetEvent and AutoAttackPet or AutoAttack
+		spellschool = 1
+		spellid = isPetEvent and 315235 or 6603
+		if swingDamage then dmgCrit = args16 end
+	end
+	local damageEvent = dse[subevent] or swingDamage
+	local missEvent = mse[subevent] or swingMiss
+
 	if isPetEvent then
-		if dse[subevent] and db.petToTargetDamageText then
+		if damageEvent and db.petToTargetDamageText then
 			self:DamageEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), spellname, amount, "pet", dmgCrit, spellid, whoguid, whoname)
-		elseif subevent == "SWING_DAMAGE" and db.petToTargetDamageText then
-			self:DamageEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), AutoAttackPet, spellid, "pet", dmgCrit, 315235, whoguid, whoname)
-		elseif mse[subevent] and db.petToTargetDamageText then
+		elseif missEvent and db.petToTargetDamageText then
 			self:MissEventPet(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), spellname, amount, spellid)
 		elseif hse[subevent] and db.petToTargetHealText then
 			self:HealEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), spellname, amount, args16, spellid,overHeal_Kill)
 		end
-	elseif playerToUnitEvent then -- player to target
-		if dse[subevent] and db.playerToTargetDamageText then
+	elseif playerToUnitEvent then
+		if damageEvent and db.playerToTargetDamageText then
 			self:DamageEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), spellname, amount, spellschool, dmgCrit, spellid, whoguid, whoname)
-		elseif subevent == "SWING_DAMAGE" and db.playerToTargetDamageText  then
-			self:DamageEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), AutoAttack, spellid, 1, dmgCrit, 6603, whoguid, whoname)
-		elseif mse[subevent] and db.playerToTargetDamageText  then
+		elseif missEvent and db.playerToTargetDamageText then
 			self:MissEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), spellname, amount, spellid)
-		elseif  subevent == "SPELL_DISPEL" and db.playerToTargetDamageText  then
+		elseif subevent == "SPELL_DISPEL" and db.playerToTargetDamageText then
 			self:DispelEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), spellname, overHeal_Kill, amount)
 		elseif hse[subevent] and db.playerToTargetHealText then
 			self:HealEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), spellname, amount, args16, spellid,overHeal_Kill)
 		elseif csi[subevent] and db.playerToTargetDamageText then
 			self:SpellInterruptEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), spellname,spellid,overHeal_Kill)
-		elseif subevent == "SWING_MISSED" and db.playerToTargetDamageText then
-			self:MissEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), AutoAttack, AutoAttack , 6603)
 		end
 	elseif unitToPlayerEvent or isPlayerEvent then
-		if dse[subevent] and db.targetToPlayerDamageText then
+		if damageEvent and db.targetToPlayerDamageText then
 			self:DamageEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), spellname, amount, spellschool, dmgCrit, spellid, whoguid, whoname)
-		elseif subevent == "SWING_DAMAGE" and db.targetToPlayerDamageText then
-			self:DamageEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), AutoAttack, spellid, 1, dmgCrit, 660, whoguid, whoname)
-		elseif mse[subevent] and db.targetToPlayerDamageText then
+		elseif missEvent and db.targetToPlayerDamageText then
 			self:MissEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), spellname, amount, spellid)
-		elseif  subevent == "SPELL_DISPEL" and db.targetToPlayerDamageText then
+		elseif subevent == "SPELL_DISPEL" and db.targetToPlayerDamageText then
 			self:DispelEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), spellname, overHeal_Kill, amount)
 		elseif hse[subevent] and db.targetToPlayerHealText then
 			self:HealEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), spellname, amount, args16, spellid,overHeal_Kill)
 		elseif csi[subevent] and db.targetToPlayerDamageText then
 			self:SpellInterruptEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), spellname,spellid,overHeal_Kill)
-		elseif subevent == "SWING_MISSED" and db.targetToPlayerDamageText then
-			self:MissEvent(self:GetFrame(whoguid,whoname,whoflag,tguid,tname,tflag), AutoAttack, AutoAttack , 6603)
 		end
 	end
 end
