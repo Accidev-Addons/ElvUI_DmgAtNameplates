@@ -67,3 +67,37 @@ class EventAlpha(unittest.TestCase):
   l=configured();l.execute('DAN.db.miss.fontAlpha=.2');combat(l,'SWING_MISSED','"DODGE",false')
   l.execute('DAN:DeleteFontString(fonts[1]);local old=DAN.db;E.db.DmgAtNameplates={};for k,v in pairs(old) do E.db.DmgAtNameplates[k]=v end;E.db.DmgAtNameplates.miss={font="newfont",fontSize=19,fontOutline="OUTLINE",fontAlpha=.7}')
   combat(l,'SWING_MISSED','"PARRY",false');self.assertEqual(l.eval('#fonts'),1);self.assertEqual(l.eval('fonts[1].fontPathSet'),'newfont');self.assertAlmostEqual(l.eval('fonts[1].startAlpha'),.7)
+
+SCAN_COUNTER='scans=0;local original=pairs;pairs=function(t) if t==NP.VisiblePlates then scans=scans+1 end return original(t) end'
+def indexed():
+ l=env(SCAN_COUNTER);l.execute('scans=0');return l
+
+class NegativeGUIDCache(unittest.TestCase):
+ def test_repeated_miss_scans_once_and_expires(self):
+  l=indexed();l.execute('for i=1,1000 do assert(not DAN:GetNameplateFrame("MISSING")) end')
+  self.assertEqual(l.eval('scans'),1)
+  l.execute('now=.099;assert(not DAN:GetNameplateFrame("MISSING"))');self.assertEqual(l.eval('scans'),1)
+  l.execute('now=.101;assert(not DAN:GetNameplateFrame("MISSING"))');self.assertEqual(l.eval('scans'),2)
+ def test_show_invalidates_negative_cache_without_waiting(self):
+  l=indexed();l.execute('''DAN:GetNameplateFrame('NEW');frame.guid='NEW';unitGUIDs.nameplate1='NEW';hooks.OnShow({ElvUIFrame=frame})''')
+  self.assertTrue(l.eval('DAN:GetNameplateFrame("NEW")==frame'))
+ def test_hide_and_recycle_invalidate_and_revalidate(self):
+  l=indexed();l.execute('''DAN:GetNameplateFrame('NEW');frame.shown=false;NP.VisiblePlates[frame]=nil;hooks.OnHide({ElvUIFrame=frame})
+  assert(not DAN:GetNameplateFrame('NPC'));frame.guid='NEW';unitGUIDs.nameplate1='NEW';frame.shown=true;NP.VisiblePlates[frame]=1;hooks.OnShow({ElvUIFrame=frame})''')
+  self.assertTrue(l.eval('DAN:GetNameplateFrame("NEW")==frame'));self.assertIsNone(l.eval('DAN:GetNameplateFrame("NPC")'))
+ def test_legacy_mapping_bypasses_a_cached_miss(self):
+  l=indexed();l.execute('''DAN:GetNameplateFrame('LEGACY');legacy=newFrame();legacy.guid='LEGACY';NP.PlateGUID={LEGACY=legacy}''')
+  self.assertTrue(l.eval('DAN:GetNameplateFrame("LEGACY")==legacy'))
+ def test_unhooked_visible_plate_recovers_after_expiry(self):
+  l=indexed();l.execute('''DAN:GetNameplateFrame('NEW');frame.guid='NEW';unitGUIDs.nameplate1='NEW';assert(not DAN:GetNameplateFrame('NEW'));now=.101''')
+  self.assertTrue(l.eval('DAN:GetNameplateFrame("NEW")==frame'))
+ def test_negative_cache_is_bounded(self):
+  l=indexed();l.execute('''for i=1,1000 do DAN:GetNameplateFrame('missing'..i) end;scans=0
+  for i=1,128 do DAN:GetNameplateFrame('missing'..i) end''')
+  self.assertEqual(l.eval('scans'),0)
+  l.execute('DAN:GetNameplateFrame("missing1000")');self.assertEqual(l.eval('scans'),1)
+ def test_disable_enable_clears_negative_cache(self):
+  l=indexed();l.execute('''DAN:GetNameplateFrame('NEW');DAN:OnDisable();DAN:OnEnable();frame.guid='NEW';unitGUIDs.nameplate1='NEW' ''')
+  self.assertTrue(l.eval('DAN:GetNameplateFrame("NEW")==frame'))
+ def test_scan_counter_observes_real_fallback(self):
+  l=indexed();l.execute('DAN:GetNameplateFrame("MISSING")');self.assertEqual(l.eval('scans'),1)

@@ -157,11 +157,21 @@ end
 -- A GUID index avoids scanning all visible plates for every combat-log hit.
 -- The tables belong to this addon; no fields or scripts of client plates change.
 local platesByGUID, guidByPlate = {}, {}
+-- Short, bounded negative cache: unknown GUIDs must not trigger a full scan
+-- for every hit. Plate lifecycle hooks invalidate it immediately; expiry also
+-- recovers changes made by older ElvUI/other addons without those hooks.
+local missingPlates, missingCount, missingUntil = {}, 0, 0
+local MISSING_PLATE_TTL, MISSING_PLATE_LIMIT = 0.1, 128
+local function ClearMissingPlates()
+	for guid in pairs(missingPlates) do missingPlates[guid] = nil end
+	missingCount, missingUntil = 0, 0
+end
 local function PlateFrame(plate)
 	return plate and (plate.ElvUIFrame or plate)
 end
 
 local function ForgetPlate(plate)
+	ClearMissingPlates()
 	local frame = PlateFrame(plate)
 	local guid = frame and guidByPlate[frame]
 	if guid and platesByGUID[guid] == frame then platesByGUID[guid] = nil end
@@ -200,8 +210,18 @@ function DAN:GetNameplateFrame(guid)
 	-- plates are shown or another plugin changes their visibility.
 	frame = PlateFrame(NP.PlateGUID and NP.PlateGUID[guid])
 	if ValidPlate(frame, guid) then IndexPlate(frame) return frame end
+	local now = GetTime()
+	if now >= missingUntil then
+		ClearMissingPlates()
+		missingUntil = now + MISSING_PLATE_TTL
+	end
+	if missingPlates[guid] then return end
 	for visible in pairs(NP.VisiblePlates or {}) do
 		if ValidPlate(visible, guid) then IndexPlate(visible) return visible end
+	end
+	if missingCount < MISSING_PLATE_LIMIT then
+		missingPlates[guid] = true
+		missingCount = missingCount + 1
 	end
 end
 function DAN:GetFrame(whoguid, whoname, whoflag, tguid, tname, tflag)
@@ -727,6 +747,7 @@ function DAN:FilterEvent(args1,args2,subevent,whoguid,whoname,whoflag,tguid,tnam
 end
 
 function DAN:PLAYER_ENTERING_WORLD(...)
+	ClearMissingPlates()
 	self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 
 	pguid = UnitGUID("player")
@@ -748,12 +769,14 @@ function DAN:PLAYER_TALENT_UPDATE(event)
 end
 
 function DAN:OnDisable()
+	ClearMissingPlates()
 	-- if not E.db.DmgAtNameplates.onorof then
 	self.DmgTextFrame:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	for fontString in pairs(animating) do self:DeleteFontString(fontString) end
 	self.DmgTextFrame:SetScript("OnUpdate", nil)
 end
 function DAN:OnEnable()
+	ClearMissingPlates()
 	-- if E.db.DmgAtNameplates.onorof then
 	self.DmgTextFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	self.DmgTextFrame:SetScript("OnEvent", function(_, event, ...)
