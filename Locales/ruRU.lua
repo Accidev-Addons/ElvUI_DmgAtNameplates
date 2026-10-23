@@ -1,5 +1,5 @@
 local E = unpack(ElvUI); --Import: Engine, Locales, PrivateDB, ProfileDB, GlobalDB
-local L = E.Libs.ACL:NewLocale("ElvUI", "ruRU")
+local L = E.Libs.ACL:NewLocale("ElvUI_DmgAtNameplates", "ruRU")
 if not L then return end
 
 -------------- text desc
@@ -11,19 +11,28 @@ L["Block"] = "Блок"
 L["Deflect"] = "Отражение"
 L["Dodge"] = "Уворот"
 L["Evade"] = "Избегание"
-L["Immune"] = "Иммунтитет"
+L["Immune"] = "Иммунитет"
 L["Miss"] = "Промах"
-L["Parry"] = "Паррирование"
+L["Parry"] = "Парирование"
+L["OverhealFormat"] = "Перелечено: %s"
+L["PetMissFormat"] = "Питомец %s"
+L["InterruptFormat"] = "Прервано {%s}"
 
 ------------- options desc
+L["PluginName"] = "Всплывающий урон"
+L["PlayerDMGFrame"] = "Урон по персонажу"
+L["TargetDMGFrame"] = "Урон по цели"
 L["common"] = "Общие"
 L["commondesc"] = "Общие настройки"
 L["onorof"] = "Включить?"
 L["onorofdesc"] = "Включает или выключает аддон"
 L["font"] = "Шрифт"
 L["fontSize"] = "Размер шрифта"
+L["fontColor"] = "Цвет текста"
 L["Font Outline"] = "Обводка"
 L["NONE"] = "Нет"
+L["Duration of all animations"] = "Длительность всех анимаций"
+L["animation"] = "Анимация"
 L["sicon"] = "Показывать иконку"
 L["offtarget"] = "Разный размер для офф таргетов"
 L["otfSize"] = "Размер"
@@ -31,7 +40,7 @@ L["fontAlpha"] = "Прозрачность"
 L["showFromAnotherPlayer"] = "Показывать текст не игрока"
 
 L["textformat"] = "Формат текста"
-L["kkk"] = "1,2k  <-- cокращать на тысячи"
+L["kkk"] = "1,2k  <-- сокращать на тысячи"
 L["csep"] = "1,200  <-- с запятой"
 L["none"] = "1200  <-- просто текст"
 
@@ -39,9 +48,8 @@ L["none"] = "1200  <-- просто текст"
 L["SmallHits"] = "Промежуточный урон"
 L["SmallHitsdesc"] = "Показывает промежуточный урон дот"
 L["SmallHitsScale"] = "Скалирование промежуточного урона"
-L["SmallHitsHidedesc"] = "Скалирование промежуточного урона"
 L["SmallHitsHide"] = "Прятать промежуточный урон"
-L["SmallHitsHidedesc"] = "Тут может быть ваша реклама"
+L["SmallHitsHidedesc"] = "Не показывать промежуточный урон"
 -------------------- animations Dmg
 L["AnimationDmg"] = "Анимации урона"
 L["autoAttackPlusCritAnimation"] = "АА + крит"
@@ -58,8 +66,8 @@ L["shwrhlldesc"] ="Показывать оверхил?"
 L["Vertical Up"] = "Поднятие вверх"
 L["Vertical Down"] = "Опускается вниз"
 L["Fountain"] = "Фонтан"
-L["Rainfall"] = "Капельки дожджа"
-L["Disabled"] = "Отключена"
+L["Rainfall"] = "Капельки дождя"
+L["Disabled"] = "Отключено"
 ----------------dmg
 L["damageText"] = "Урон персонажа"
 ----------------heal
@@ -81,30 +89,8 @@ L["ttphtdesc"] = "Исцеление В персонажа"
 -----------------pet text
 L["petToTargetDamageText"] = "Урон ОТ пета"
 L["petttdtdesc"] = "Урон ОТ пета"
-L["petToTargetHealText"] = "Хил От пета"
+L["petToTargetHealText"] = "Хил от пета"
+L["pettthtdesc"] = "Хил от пета"
 L["DispelTab"] = "Рассеивание"
 L["MissTab"] = "Промахи"
 L["InterruptTab"] = "Прерывания"
-
-
--- L["showtargetdt"] = "Отображение урона на плейтах"
--- L["showtargetdtdesc"] = "Включение или выключение отображение текста урона на плейтах"
--- L["showtargetht"] = "Отображение исцеления на плейтах"
--- L["showtargethtdesc"] = "Включение или выключение отображение текста исцеления на плейтах"
--- L["showpetrdt"] = "Отображение урона питомцов"
--- L["showpetrdtdesc"] = "Включение или выключение отображение текста питомцев"
--- L["showplayerdt"] = "Отображение на персонаже"
--- L["showplayerdtdesc"] = "Включение или выключение отображение текста по персонажу"
-
-
-
--- L["onorof"] = "Включить?"
--- L["onorof"] = "Включить?"
--- L["onorof"] = "Включить?"
--- L["onorof"] = "Включить?"
--- L["onorof"] = "Включить?"
--- L["onorof"] = "Включить?"
--- L["onorof"] = "Включить?"
-
-
-

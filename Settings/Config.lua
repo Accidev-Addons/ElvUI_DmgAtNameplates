@@ -1,5 +1,6 @@
 
-local E, L, V, P, G = unpack(ElvUI)
+local E = unpack(ElvUI)
+local L = E.Libs.ACL:GetLocale("ElvUI_DmgAtNameplates", E:GetLocale())
 local DAN = E:GetModule("DmgAtNameplates")
 
 local animationValues = {
@@ -10,8 +11,15 @@ local animationValues = {
 	["disabled"] = L["Disabled"]
 }
 
-local function tableForAllEvents(type)
-	local table = {
+local fontOutlineValues = {
+	["NONE"] = L["NONE"],
+	["OUTLINE"] = "OUTLINE",
+	["MONOCHROMEOUTLINE"] = "MONOCHROMEOUTLINE",
+	["THICKOUTLINE"] = "THICKOUTLINE"
+}
+
+local function tableForAllEvents(key)
+	return {
 		font = {
 			order = 1,
 			type = "select",
@@ -37,12 +45,15 @@ local function tableForAllEvents(type)
 			order = 4,
 			type = "select",
 			name = L["Font Outline"],
-			values = {
-				["NONE"] = L["NONE"],
-				["OUTLINE"] = "OUTLINE",
-				["MONOCHROMEOUTLINE"] = "MONOCROMEOUTLINE",
-				["THICKOUTLINE"] = "THICKOUTLINE"
-			}
+			values = fontOutlineValues
+		},
+		fontColor = {
+			order = 5,
+			type = "color",
+			name = L["fontColor"],
+			hasAlpha = false,
+			get = function() return DAN:hexToRGB(E.db.DmgAtNameplates[key].fontColor) end,
+			set = function(_, r, g, b) E.db.DmgAtNameplates[key].fontColor = DAN:rgbToHex(r, g, b) end,
 		},
 		animation = {
 			order = 6,
@@ -52,25 +63,35 @@ local function tableForAllEvents(type)
 			values = animationValues,
 		},
 	}
-	return table
 end
 
+local function eventGroup(order, name, key)
+	return {
+		order = order,
+		type = "group",
+		name = name,
+		get = function(info) return E.db.DmgAtNameplates[key][info[#info]] end,
+		set = function(info, value) E.db.DmgAtNameplates[key][info[#info]] = value end,
+		args = tableForAllEvents(key),
+	}
+end
+
+local function get(info) return E.db.DmgAtNameplates[info[#info]] end
+local function set(info, value) E.db.DmgAtNameplates[info[#info]] = value end
+
 function DAN:DmgAtNameplatesOptions()
-	-- DAN.db = E.db.DmgAtNameplates or P.DmgAtNameplates
 	E.Options.args.DmgAtNameplates = {
 		order = 55,
 		type = "group",
 		childGroups = "tab",
-		name = string.format("|cff00FF00%s|r", "Всплывающий урон"),
+		name = string.format("|cff00FF00%s|r", L["PluginName"]),
 		args = {
 			common = {
 				order = 1,
 				type = "group",
 				name = L["common"],
-				get = function(info)  return E.db.DmgAtNameplates[info[#info]] end,
-				set = function(info, value)
-					E.db.DmgAtNameplates[info[#info]] = value
-				end,
+				get = get,
+				set = set,
 				args = {
 					header = {
 						order = 1,
@@ -82,14 +103,9 @@ function DAN:DmgAtNameplatesOptions()
 						type = "toggle",
 						name = L["onorof"],
 						desc = L["onorofdesc"],
-						get = function(info) return E.db.DmgAtNameplates.enable end,
 						set = function(info, value)
 							E.db.DmgAtNameplates.enable = value
-							if not E.db.DmgAtNameplates.enable then
-								DAN:OnDisable()
-							else
-								DAN:OnEnable()
-							end
+							if not value then DAN:ClearTexts() end
 						end
 					},
 					showIcon = {
@@ -97,20 +113,12 @@ function DAN:DmgAtNameplatesOptions()
 						type = "toggle",
 						name = L["sicon"],
 						desc = L["sicon"],
-						get = function(info) return E.db.DmgAtNameplates.showIcon end,
-						set = function(info, value)
-							E.db.DmgAtNameplates.showIcon = value
-						end
 					},
 					showFromAnotherPlayer = {
 						order = 4,
 						type = "toggle",
 						name = L["showFromAnotherPlayer"],
 						desc = L["showFromAnotherPlayer"],
-						get = function(info) return E.db.DmgAtNameplates.showFromAnotherPlayer end,
-						set = function(info, value)
-							E.db.DmgAtNameplates.showFromAnotherPlayer = value
-						end
 					},
 					duration = {
 						order = 5,
@@ -129,12 +137,6 @@ function DAN:DmgAtNameplatesOptions()
 						name = L["font"],
 						dialogControl = "LSM30_Font",
 						values = AceGUIWidgetLSMlists.font,
-						get = function()
-							return E.db.DmgAtNameplates.font
-						end,
-						set = function(_, newValue)
-							E.db.DmgAtNameplates.font = newValue
-						end
 					},
 					fontSize = {
 						order = 8,
@@ -154,12 +156,7 @@ function DAN:DmgAtNameplatesOptions()
 						order = 10,
 						type = "select",
 						name = L["Font Outline"],
-						values = {
-							["NONE"] = L["NONE"],
-							["OUTLINE"] = "OUTLINE",
-							["MONOCHROMEOUTLINE"] = "MONOCROMEOUTLINE",
-							["THICKOUTLINE"] = "THICKOUTLINE"
-						}
+						values = fontOutlineValues
 					},
 					header2 = {
 						order = 11,
@@ -171,12 +168,6 @@ function DAN:DmgAtNameplatesOptions()
 						type = "toggle",
 						name = L["offtarget"],
 						desc = "",
-						get = function()
-							return E.db.DmgAtNameplates.showOffTargetText
-						end,
-						set = function(_, newValue)
-							E.db.DmgAtNameplates.showOffTargetText = newValue
-						end,
 					},
 					showOffTargetTextSize = {
 						order = 13,
@@ -186,15 +177,7 @@ function DAN:DmgAtNameplatesOptions()
 						min = 5,
 						max = 72,
 						step = 1,
-						disabled = function()
-							return not E.db.DmgAtNameplates.showOffTargetText
-						end,
-						get = function()
-							return E.db.DmgAtNameplates.showOffTargetTextSize
-						end,
-						set = function(_, newValue)
-							E.db.DmgAtNameplates.showOffTargetTextSize = newValue
-						end,
+						disabled = function() return not E.db.DmgAtNameplates.showOffTargetText end,
 					},
 					showOffTargetTextAlpha = {
 						order = 14,
@@ -204,15 +187,7 @@ function DAN:DmgAtNameplatesOptions()
 						min = 0.1,
 						max = 1,
 						step = .01,
-						disabled = function()
-							return not E.db.DmgAtNameplates.showOffTargetText
-						end,
-						get = function()
-							return E.db.DmgAtNameplates.showOffTargetTextAlpha
-						end,
-						set = function(_, newValue)
-							E.db.DmgAtNameplates.showOffTargetTextAlpha = newValue
-						end,
+						disabled = function() return not E.db.DmgAtNameplates.showOffTargetText end,
 					},
 					header3 = {
 						order = 15,
@@ -227,12 +202,6 @@ function DAN:DmgAtNameplatesOptions()
 						disabled = function()
 							return not E.db.DmgAtNameplates.enable or E.db.DmgAtNameplates.smallHitsHide
 						end,
-						get = function()
-							return E.db.DmgAtNameplates.smallHits
-						end,
-						set = function(_, newValue)
-							E.db.DmgAtNameplates.smallHits = newValue
-						end,
 					},
 					smallHitsScale = {
 						order = 17,
@@ -245,12 +214,6 @@ function DAN:DmgAtNameplatesOptions()
 						min = 0.33,
 						max = 1,
 						step = .01,
-						get = function()
-							return E.db.DmgAtNameplates.smallHitsScale
-						end,
-						set = function(_, newValue)
-							E.db.DmgAtNameplates.smallHitsScale = newValue
-						end,
 						width = "double"
 					},
 					smallHitsHide = {
@@ -258,12 +221,6 @@ function DAN:DmgAtNameplatesOptions()
 						type = "toggle",
 						name = L["SmallHitsHide"],
 						desc = L["SmallHitsHidedesc"],
-						get = function()
-							return E.db.DmgAtNameplates.smallHitsHide
-						end,
-						set = function(_, newValue)
-							E.db.DmgAtNameplates.smallHitsHide = newValue
-						end,
 					},
 					textFormat = {
 						order = 19,
@@ -274,23 +231,15 @@ function DAN:DmgAtNameplatesOptions()
 							["csep"] = L["csep"],
 							["kkk"] = L["kkk"],
 						},
-						get = function()
-							return E.db.DmgAtNameplates.textFormat
-						end,
-						set = function(_, newValue)
-							E.db.DmgAtNameplates.textFormat = newValue
-						end
 					},
 				},
 			},
-            playerToTargetDamageTextTab = {
+			playerToTargetDamageTextTab = {
 				order = 2,
 				type = "group",
 				name = L["damageText"],
-				get = function(info)  return E.db.DmgAtNameplates[info[#info]] end,
-				set = function(info, value)
-					E.db.DmgAtNameplates[info[#info]] = value
-				end,
+				get = get,
+				set = set,
 				args = {
 					header = {
 						order = 1,
@@ -362,14 +311,12 @@ function DAN:DmgAtNameplatesOptions()
 					},
 				},
 			},
-            playerToTargetHealTextTab = {
+			playerToTargetHealTextTab = {
 				order = 3,
 				type = "group",
 				name = L["healText"],
-				get = function(info)  return E.db.DmgAtNameplates[info[#info]] end,
-				set = function(info, value)
-					E.db.DmgAtNameplates[info[#info]] = value
-				end,
+				get = get,
+				set = set,
 				args = {
 					header = {
 						order = 1,
@@ -381,40 +328,24 @@ function DAN:DmgAtNameplatesOptions()
 						type = "toggle",
 						name = L["playerToTargetHealText"],
 						desc = L["ptthtdesc"],
-						get = function(info) return E.db.DmgAtNameplates.playerToTargetHealText end,
-						set = function(info, value)
-							E.db.DmgAtNameplates.playerToTargetHealText = value
-						end
 					},
 					targetToPlayerHealText = {
 						order = 3,
 						type = "toggle",
 						name = L["targetToPlayerHealText"],
 						desc = L["ttphtdesc"],
-						get = function(info) return E.db.DmgAtNameplates.targetToPlayerHealText end,
-						set = function(info, value)
-							E.db.DmgAtNameplates.targetToPlayerHealText = value
-						end
 					},
 					petToTargetHealText = {
 						order = 4,
 						type = "toggle",
 						name = L["petToTargetHealText"],
 						desc = L["pettthtdesc"],
-						get = function(info) return E.db.DmgAtNameplates.petToTargetHealText end,
-						set = function(info, value)
-							E.db.DmgAtNameplates.petToTargetHealText = value
-						end
 					},
 					showOverHeal = {
 						order = 5,
 						type = "toggle",
 						name = L["showOverHeal"],
 						desc = L["shwrhlldesc"],
-						get = function(info) return E.db.DmgAtNameplates.showOverHeal end,
-						set = function(info, value)
-							E.db.DmgAtNameplates.showOverHeal = value
-						end
 					},
 					header2 = {
 						order = 6,
@@ -427,10 +358,6 @@ function DAN:DmgAtNameplatesOptions()
 						name = L["crit"],
 						desc = L["crit"],
 						values = animationValues,
-						get = function(info) return E.db.DmgAtNameplates.healCrit end,
-						set = function(info, value)
-							E.db.DmgAtNameplates.healCrit = value
-						end
 					},
 					noHealCrit = {
 						order = 8,
@@ -438,10 +365,6 @@ function DAN:DmgAtNameplatesOptions()
 						name = L["noHealCrit"],
 						desc = L["noHealCrit"],
 						values = animationValues,
-						get = function(info) return E.db.DmgAtNameplates.noHealCrit end,
-						set = function(info, value)
-							E.db.DmgAtNameplates.noHealCrit = value
-						end
 					},
 					healColor = {
 						order = 9,
@@ -458,36 +381,9 @@ function DAN:DmgAtNameplatesOptions()
 					},
 				},
 			},
-			DispelTab = {
-				order = 4,
-				type = "group",
-				name = L["DispelTab"],
-				get = function(info)  return E.db.DmgAtNameplates.dispel[info[#info]] end,
-				set = function(info, value)
-					E.db.DmgAtNameplates.dispel[info[#info]] = value
-				end,
-				args = tableForAllEvents("dispel");
-			},
-			MissTab = {
-				order = 5,
-				type = "group",
-				name = L["MissTab"],
-				get = function(info)  return E.db.DmgAtNameplates.miss[info[#info]] end,
-				set = function(info, value)
-					E.db.DmgAtNameplates.miss[info[#info]] = value
-				end,
-				args = tableForAllEvents("miss");
-			},
-			InterruptTab = {
-				order = 6,
-				type = "group",
-				name = L["InterruptTab"],
-				get = function(info)  return E.db.DmgAtNameplates.interrupt[info[#info]] end,
-				set = function(info, value)
-					E.db.DmgAtNameplates.interrupt[info[#info]] = value
-				end,
-				args = tableForAllEvents("interrupt");
-			},
+			DispelTab = eventGroup(4, L["DispelTab"], "dispel"),
+			MissTab = eventGroup(5, L["MissTab"], "miss"),
+			InterruptTab = eventGroup(6, L["InterruptTab"], "interrupt"),
 		}
 	}
 end
