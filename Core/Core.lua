@@ -159,9 +159,31 @@ local function IndexPlate(plate)
 	end
 end
 
+local function DetachTexts(frame)
+	local cx, cy = UIParent:GetCenter()
+	for fontString in pairs(animating) do
+		if fontString.nameplateFrame == frame then
+			local x, y = fontString:GetCenter()
+			if x and fontString.offsetX then
+				fontString.startX = x - cx - fontString.offsetX
+				fontString.startY = y - cy - fontString.offsetY
+				fontString.anchorFrame, fontString.nameplateFrame, fontString.anchorGUID = UIParent, nil, nil
+			else
+				DAN:DeleteFontString(fontString)
+			end
+		end
+	end
+end
+
+local function HidePlate(plate)
+	local frame = plate and (plate.ElvUIFrame or plate)
+	if frame then DetachTexts(frame) end
+	ForgetPlate(plate)
+end
+
 function DAN:InitializePlateIndex()
 	hooksecurefunc(NP, "OnShow", IndexPlate)
-	hooksecurefunc(NP, "OnHide", ForgetPlate)
+	hooksecurefunc(NP, "OnHide", HidePlate)
 	for frame in pairs(NP.VisiblePlates) do IndexPlate(frame) end
 end
 
@@ -206,6 +228,7 @@ function DAN:DeleteFontString(fontString)
 	fontString.icon:Hide()
 	fontString.icon:ClearAllPoints()
 	fontString.anchorFrame, fontString.nameplateFrame, fontString.anchorGUID = nil, nil, nil
+	fontString.offsetX, fontString.offsetY = nil, nil
 	fontString.pow = nil
 	tinsert(fontStringCache, fontString)
 end
@@ -303,6 +326,7 @@ local function AnimationOnUpdate()
 				end
 
 				if fontString.anchorFrame and fontString.anchorFrame:IsShown() then
+					fontString.offsetX, fontString.offsetY = xOffset, yOffset
 					fontString:SetPoint("CENTER", fontString.anchorFrame, "CENTER", fontString.startX + xOffset, fontString.startY + yOffset)
 				else
 					DAN:DeleteFontString(fontString)
